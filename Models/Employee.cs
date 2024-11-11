@@ -20,7 +20,7 @@ namespace ExcelToWord.Models
             }
         }
         public DateTime BirthDay { get; set; }
-        public int DepartmentId { get; set; }
+        public long DepartmentId { get; set; }
         
     }
 }

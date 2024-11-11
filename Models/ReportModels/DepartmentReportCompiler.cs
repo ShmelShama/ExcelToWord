@@ -1,5 +1,4 @@
-﻿using DocumentFormat.OpenXml.Bibliography;
-using ExcelToWord.Interfaces;
+﻿using ExcelToWord.Interfaces;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -40,7 +39,11 @@ namespace ExcelToWord.Models.ReportModels
                 {
                     foreach (long employeeId in job.EmployeeIds)
                     {
-                        employeesDictionary[employeeId].JobsCount++;
+                        if(employeesDictionary.ContainsKey(employeeId))
+                        {
+                            employeesDictionary[employeeId].JobsCount++;
+                        }
+                       
                     }
                 }
 

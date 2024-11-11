@@ -1,5 +1,4 @@
-﻿using DocumentFormat.OpenXml.Bibliography;
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -44,7 +43,7 @@ namespace ExcelToWord.Models.ReportModels
                 
             }
             Message = "Данные проверены";
-            return true;
+            return Status=true;
         }
 
         private bool CheckBase(IEnumerable<Base> models)

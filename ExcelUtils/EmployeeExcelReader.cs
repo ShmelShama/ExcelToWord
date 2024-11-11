@@ -4,11 +4,12 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using System.IO;
-using ClosedXML.Excel;
 using ExcelToWord.Models;
 using ExcelToWord.Interfaces;
-using static System.Windows.Forms.VisualStyles.VisualStyleElement;
+
 using System.Windows.Forms;
+
+using Excel = Microsoft.Office.Interop.Excel;
 
 namespace ExcelToWord.ExcelUtils
 {
@@ -20,7 +21,7 @@ namespace ExcelToWord.ExcelUtils
 
         public bool Status { get; private set; }
 
-        private readonly List<string> columnNames = new List<string>() { "Табельный номер", "Фамилия", "Имя", "Отчество", "ДатаРождения", "Отдел" };
+        private readonly List<string> columnNames = new List<string>() { "Табельный номер", "Фамилия", "Имя", "Отчество", "Дата рождения", "Отдел" };
         public IEnumerable<Employee> GetData() 
         { 
             return Employees; 
@@ -32,77 +33,106 @@ namespace ExcelToWord.ExcelUtils
                 Message = $"Файл {filePath} не найден";
                 return Status = false;
             }
-            using (var workbook = new XLWorkbook(filePath))
+            Employees = new List<Employee>();
+            var excelApp = new Excel.Application();
+            var wb = excelApp.Workbooks.Open(filePath);
+            Excel.Worksheet wsht = null;
+            bool hasWsht = false;
+            foreach (Excel.Worksheet sheet in wb.Worksheets)
             {
-                var wshts = workbook.Worksheets.Where(f => f.Name == "Сотрудники");
-                if (wshts == null || !wshts.Any() || wshts.Count() > 1)
+                if (sheet.Name == "Сотрудники")
                 {
-                    Message = "Не найден лист Сотрудники";
-                    return Status = false;
-                }
-                var wsht = wshts.First();
-                if (wsht.IsEmpty())
-                {
-                    Message = "Пустой лист Сотрудники";
-                    return Status = false;
-                }
-                var headerRows = wsht.Row(1);
-                if (headerRows.IsEmpty())
-                {
-                    Message = "Нет колонок с наименованиями для листа Сотрудники";
-                    return Status = false;
-                }
-
-                Dictionary<string, int> columnHeaders = new Dictionary<string, int>();
-
-                for (int i = 1; i == columnNames.Count; i++)
-                {
-                    var headerCell = headerRows.Search(columnNames[i]);
-                    if (headerCell == null || !headerCell.Any() || headerCell.Count() > 1)
-                    {
-                        Message = "Нет колонок с наименованиями для листа Сотрудники";
-                        return Status = false;
-                    }
-                    columnHeaders.Add(columnNames[i], headerCell.First().Address.ColumnNumber);
-                }
-
-                for (int i = 2; ; i++)
-                {
-                    var row = wsht.Row(i);
-                    if (row.IsEmpty())
-                        break;
-                    Employee employee = new Employee();
-
-                    foreach (var column in columnHeaders)
-                    {
-                        switch (column.Key)
-                        {
-                            case "Табельный номер":
-                                employee.Id = row.Cell(column.Value).GetValue<long>();
-                                break;
-                            case "Фамилия":
-                                employee.Surname = row.Cell(column.Value).GetValue<string>();
-                                break;
-                            case "Имя":
-                                employee.Name = row.Cell(column.Value).GetValue<string>();
-                                break;
-                            case "Отчество":
-                                employee.Patronymic = row.Cell(column.Value).GetValue<string>();
-                                break;
-                            case "ДатаРождения":
-                                employee.BirthDay = row.Cell(column.Value).GetValue<DateTime>();
-                                break;
-                            case "Отдел":
-                                employee.DepartmentId = row.Cell(column.Value).GetValue<int>();
-                                break;
-
-                        }
-                    }
-                    Employees.Add(employee);
-                }
-                Message = $"Данные по сотрудникам из файла {filePath} загружены";
-                return Status = true;
+                    wsht = sheet;
+                    hasWsht = true;
+                };
             }
+            if (!hasWsht)
+            {
+                Message = "Не найден лист Сотрудники";
+                wb.Close(false);
+                excelApp.Quit();
+                return Status = false;
+            }
+
+            for (int i = 0; i < columnNames.Count; i++)
+            {
+                string value = wsht.Cells[1, i + 1].Value;
+                if (!value.Contains( columnNames[i]))
+                {
+                    Message = "Неcовпадение колонок в листе Сотрудники";
+                    wb.Close(false);
+                    excelApp.Quit();
+                    return Status = false;
+                }
+
+            }
+
+
+            for (int i = 2; ; i++)
+            {
+
+                string valueId = wsht.Cells[i, 1].Value?.ToString();
+                if (string.IsNullOrEmpty(valueId))
+                    break;
+                long id;
+                if (!long.TryParse(valueId, out id))
+                {
+
+                    Message = "Поврежденные данные в листе Сотрудники";
+                    wb.Close(false);
+                    excelApp.Quit();
+                    return Status = false;
+
+                }
+
+                string valueSurname = wsht.Cells[i, 2].Value?.ToString();
+                string valueName = wsht.Cells[i, 3].Value?.ToString();
+                string valuePatronymic = wsht.Cells[i, 4].Value?.ToString();
+
+                string valueBirthday = wsht.Cells[i, 5].Value?.ToString();
+                DateTime birthday;
+                if (!DateTime.TryParse(valueBirthday, out birthday))
+                {
+
+                    wb.Close(false);
+                    Message = "Поврежденные данные в листе Сотрудники";
+                    excelApp.Quit();
+                    return Status = false;
+
+                }
+
+                string valueDepartmentId = wsht.Cells[i, 6].Value?.ToString();
+                long departmentId;
+                if (!long.TryParse(valueDepartmentId, out departmentId))
+                {
+                    Message = "Поврежденные данные в листе Сотрудники";
+                    wb.Close(false);
+                    excelApp.Quit();
+                    return Status = false;
+
+                }
+
+                Employees.Add(new Employee()
+                {
+                    Id = id,
+                    Surname = valueSurname ?? string.Empty,
+                    Name = valueName ?? string.Empty,
+                    Patronymic = valuePatronymic ?? string.Empty,
+                    BirthDay = birthday,
+                    DepartmentId = departmentId,
+                });
+
+
+
+
+            }
+
+            Message = $"Данные по сотрудниками из файла {filePath} загружены";
+            wb.Close(false);
+            excelApp.Quit();
+            return Status = true;
+
+            
               
         }
     }

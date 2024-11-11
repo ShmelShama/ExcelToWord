@@ -9,6 +9,9 @@ namespace ExcelToWord.Interfaces
     public interface IExporter
     {
         bool Export(string path);
+        string Message { get; }
+
+        bool Status { get; }
 
     }
 }

@@ -5,11 +5,14 @@ using System.Text;
 using System.Threading.Tasks;
 using System.Xml.Linq;
 using System.Windows.Forms;
+using System.IO;
 using ExcelToWord.Core;
 using ExcelToWord.ExcelUtils;
 using ExcelToWord.Interfaces;
 using ExcelToWord.WordUtils;
 using ExcelToWord.Models.ReportModels;
+using System.Collections;
+using Excel = Microsoft.Office.Interop.Excel;
 
 namespace ExcelToWord.ViewModels
 {
@@ -88,6 +91,8 @@ namespace ExcelToWord.ViewModels
 
         public RelayCommand StartProcessCommand => new RelayCommand(async o =>
         {
+
+            Message = "Загрузка данных в программу...";
             var departmentReader = _readerFactory.CreateDepartmentReader();
             var employeeReader = _readerFactory.CreateEmployeeReader();
             var jobReader = _readerFactory.CreateJobReader();
@@ -96,9 +101,9 @@ namespace ExcelToWord.ViewModels
             {
                 departmentReader.ReadDataFromFile(SourceFileName);
             });
-            if(!departmentReader.Status)
+            if (!departmentReader.Status)
             {
-                Message=departmentReader.Message;
+                Message = departmentReader.Message;
                 return;
             }
             await Task.Run(() =>
@@ -119,24 +124,33 @@ namespace ExcelToWord.ViewModels
                 Message = jobReader.Message;
                 return;
             }
+            Message = "Проверка данных...";
             DataIntegrityCheck dataIntegrityCheck = new DataIntegrityCheck();
             await Task.Run(() =>
             {
-                dataIntegrityCheck.CheckData(departmentReader.GetData(),employeeReader.GetData(), jobReader.GetData());
+                dataIntegrityCheck.CheckData(departmentReader.GetData(), employeeReader.GetData(), jobReader.GetData());
             });
             if (!dataIntegrityCheck.Status)
             {
                 Message = dataIntegrityCheck.Message;
                 return;
             }
-            
+
             IDepartmentReportCompiler reportCompiler = new DepartmentReportCompiler();
             var reportData = reportCompiler.CreateReport(departmentReader.GetData(), employeeReader.GetData(), jobReader.GetData());
-            if(reportData==null)
+            if (reportData == null)
             {
                 Message = "Не удалось подготовить данные для отчета";
                 return;
             }
+            await Task.Run(() =>
+            {
+                _reportExporter.SetExportData(reportData);
+                _reportExporter.Export(ExportPath);
+            });
+
+            Message = _reportExporter.Message;
+
 
         });
 

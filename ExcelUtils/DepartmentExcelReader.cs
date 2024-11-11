@@ -1,12 +1,13 @@
-﻿using ClosedXML.Excel;
-using ExcelToWord.Models;
+﻿using ExcelToWord.Models;
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using System.IO;
+using Excel = Microsoft.Office.Interop.Excel;
 using ExcelToWord.Interfaces;
+
 namespace ExcelToWord.ExcelUtils
 {
     public class DepartmentExcelReader:IDepartmentReader
@@ -25,71 +26,84 @@ namespace ExcelToWord.ExcelUtils
         }
         public bool ReadDataFromFile(string filePath)
         {
+            
             if (!File.Exists(filePath))
             {
                 Message = $"Файл {filePath} не найден";
                 return Status = false;
             }
-            using (var workbook = new XLWorkbook(filePath))
+            Departments = new List<Department>();
+            var excelApp = new Excel.Application();
+            var wb = excelApp.Workbooks.Open(filePath);
+            Excel.Worksheet wsht = null ;
+            bool hasWsht = false;
+            foreach(Excel.Worksheet sheet in wb.Worksheets)
             {
-                var wshts = workbook.Worksheets.Where(f => f.Name == "Отделы");
-                if (wshts == null || !wshts.Any() || wshts.Count() > 1)
+                if (sheet.Name == "Отделы")
                 {
-                    Message = "Не найден лист Отделы";
+                    wsht=sheet;
+                    hasWsht = true;
+                };
+            }
+            if (!hasWsht)
+            {
+                Message = "Не найден лист Отделы";
+                wb.Close(false);
+                excelApp.Quit();
+                return Status = false;
+            }
+            
+            for(int i=0; i<columnNames.Count;i++ )
+            {
+                string value = wsht.Cells[1,i+1].Value;
+                if(!value.Contains(columnNames[i]))
+                {
+                    Message = "Неcовпадение колонок в листе Отделы";
+                    wb.Close(false);
+                    excelApp.Quit();
                     return Status = false;
                 }
-                var wsht = wshts.First();
-                if (wsht.IsEmpty())
+                   
+            }
+
+
+            for (int i = 2; ; i++)
+            {
+                
+                string valueId = wsht.Cells[i, 1].Value?.ToString();
+                if (string.IsNullOrEmpty(valueId))
+                    break;
+
+                long id;
+                if (!long.TryParse(valueId, out id))
                 {
-                    Message = "Пустой лист Отделы";
+
+                    Message = "Поврежденные данные в листе Отделы";
+                    wb.Close(false);
+                    excelApp.Quit();
                     return Status = false;
+
                 }
-                var headerRows = wsht.Row(1);
-                if (headerRows.IsEmpty())
+
+                string valueName = wsht.Cells[i, 2].Value.ToString();
+
+                Departments.Add( new Department()
                 {
-                    Message = "Нет колонок с наименованиями для листа Отделы";
-                    return Status = false;
-                }
+                    Id = id,
+                    Name = valueName ?? string.Empty,
+                });
 
-                Dictionary<string, int> columnHeaders = new Dictionary<string, int>();
 
-                for (int i = 1; i == columnNames.Count; i++)
-                {
-                    var headerCell = headerRows.Search(columnNames[i]);
-                    if (headerCell == null || !headerCell.Any() || headerCell.Count() > 1)
-                    {
-                        Message = "Нет колонок с наименованиями для листа Отделы";
-                        return Status = false;
-                    }
-                    columnHeaders.Add(columnNames[i], headerCell.First().Address.ColumnNumber);
-                }
 
-                for (int i = 2; ; i++)
-                {
-                    var row = wsht.Row(i);
-                    if (row.IsEmpty())
-                        break;
-                    Department department = new Department();
-
-                    foreach (var column in columnHeaders)
-                    {
-                        switch (column.Key)
-                        {
-                            case "ИД отдела":
-                                department.Id = row.Cell(column.Value).GetValue<long>();
-                                break;
-                            case "Наименование отдела":
-                                department.Name = row.Cell(column.Value).GetValue<string>();
-                                break;
-                        }
-                    }
-                    Departments.Add(department);
-                }
-
-                Message = $"Данные по отделам из файла {filePath} загружены";
-                return Status = true;
 
             }
+
+            Message = $"Данные по отделам из файла {filePath} загружены";
+            wb.Close(false);
+            excelApp.Quit();
+            return Status= true;
+
+
                
         }
     }
