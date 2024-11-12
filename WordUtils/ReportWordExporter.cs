@@ -68,20 +68,22 @@ namespace ExcelToWord.WordUtils
                     i++;
                 }
             }
-            string fullpath = $"{path}\\{DateTime.Today.ToShortDateString()}.docx";
+           
             try
             {
-                doc.SaveAs2(fullpath);
+                doc.SaveAs2(path);
             }
             catch
             {
                 Message = "Не удалось сохранить файл";
-                Status = false;
-                doc.SaveAs2(fullpath);
                 doc.Close(false);
                 wordApp.Quit();
+                return Status = false;
+        
+                
+                
             }
-            Message = $"Отчет успешно создан {fullpath}";
+            Message = $"Отчет успешно создан {path}";
             doc.Close(false);
             wordApp.Quit();
             return Status=true;

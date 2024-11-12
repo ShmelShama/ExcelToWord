@@ -13,6 +13,9 @@ using ExcelToWord.WordUtils;
 using ExcelToWord.Models.ReportModels;
 using System.Collections;
 using Excel = Microsoft.Office.Interop.Excel;
+using System.Diagnostics;
+using System.Windows.Shapes;
+using Microsoft.Office.Interop.Excel;
 
 namespace ExcelToWord.ViewModels
 {
@@ -24,11 +27,13 @@ namespace ExcelToWord.ViewModels
         private string _exportPath;
         private string _message;
         private bool _isProcessEnabled;
+        private bool _isButtonEnabled;
         public MainViewModel()
         {
             _readerFactory = new ExcelReaderFactory();
             _reportExporter = new ReportWordExporter();
             IsProcessEnabled = false;
+            IsButtonEnabled = true;
         }
         public string SourceFileName
         {
@@ -67,6 +72,15 @@ namespace ExcelToWord.ViewModels
                 OnPropertyChanged(nameof(IsProcessEnabled));
             }
         }
+        public bool IsButtonEnabled
+        {
+            get => _isButtonEnabled;
+            set
+            {
+                _isButtonEnabled = value;
+                OnPropertyChanged(nameof(IsButtonEnabled));
+            }
+        }
         public RelayCommand BrowseFileCommand => new RelayCommand(o =>
         {
             OpenFileDialog fileDialog = new OpenFileDialog();
@@ -91,7 +105,8 @@ namespace ExcelToWord.ViewModels
 
         public RelayCommand StartProcessCommand => new RelayCommand(async o =>
         {
-
+            IsButtonEnabled = false;
+            IsProcessEnabled = false;
             Message = "Загрузка данных в программу...";
             var departmentReader = _readerFactory.CreateDepartmentReader();
             var employeeReader = _readerFactory.CreateEmployeeReader();
@@ -143,14 +158,30 @@ namespace ExcelToWord.ViewModels
                 Message = "Не удалось подготовить данные для отчета";
                 return;
             }
+            string fullpath = $"{ExportPath}\\{DateTime.Today.ToShortDateString()}.docx";
             await Task.Run(() =>
             {
                 _reportExporter.SetExportData(reportData);
-                _reportExporter.Export(ExportPath);
+                _reportExporter.Export(fullpath);
             });
-
             Message = _reportExporter.Message;
-
+            if (_reportExporter.Status)
+            {
+                try
+                {
+                    Process.Start(fullpath);
+                }
+                catch(Exception ex)
+                {
+                    Message = $"Ошибка при открытии созданного файла {fullpath}.\n{ex.Message}";
+                }
+               
+            }
+          
+            IsButtonEnabled = true;
+            IsProcessEnabled = true;
+          
+          
 
         });
 

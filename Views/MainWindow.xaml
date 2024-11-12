@@ -46,7 +46,8 @@
             <Button Content="Обзор"
                     Margin="10"
                     HorizontalAlignment="Left"
-                    Command="{Binding BrowseFileCommand}"/>
+                    Command="{Binding BrowseFileCommand}"
+                    IsEnabled="{Binding IsButtonEnabled}"/>
             <TextBlock Text="{Binding SourceFileName}">
                 
             </TextBlock>
@@ -57,7 +58,8 @@
             <Button Content="Обзор"
                     Margin="10"
                     HorizontalAlignment="Left"
-                    Command="{Binding BrowseFolderCommand}"/>
+                    Command="{Binding BrowseFolderCommand}"
+                    IsEnabled="{Binding IsButtonEnabled}"/>
             <TextBlock Text="{Binding ExportPath}">
 
             </TextBlock>
